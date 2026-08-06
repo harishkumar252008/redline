@@ -1,0 +1,5 @@
+tools/
+.system_generated/
+*.log
+node_modules/
+.DS_Store

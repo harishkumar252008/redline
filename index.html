@@ -1,0 +1,1458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>REDLINE LAB — Vehicle Dynamics Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --void:#050505;
+  --panel:#0d1424;
+  --panel-alt:#121b30;
+  --line:#1e2b47;
+  --cyan:#00f0ff;
+  --pink:#ff2e88;
+  --amber:#ffb800;
+  --green:#39ff88;
+  --red:#ff3b3b;
+  --orange:#ff5a00;
+  --text:#e8edf5;
+  --muted:#7d8aa8;
+  --display:'Orbitron',sans-serif;
+  --body:'Rajdhani',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+  --sora:'Sora',sans-serif;
+}
+
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  min-height:100vh;
+  background:
+    radial-gradient(ellipse at 20% -10%, rgba(0,240,255,0.08), transparent 55%),
+    radial-gradient(ellipse at 90% 10%, rgba(255,90,0,0.07), transparent 50%),
+    var(--void);
+  color:var(--text);
+  font-family:var(--body);
+  padding:28px 18px 60px;
+  position:relative;
+  overflow-x:hidden;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  z-index:1;
+}
+::selection{background:var(--cyan); color:var(--void);}
+
+h1,h2,h3{font-family:var(--display); margin:0;}
+a{color:var(--cyan);}
+button{font-family:inherit;}
+:focus-visible{outline:2px solid var(--cyan); outline-offset:3px; border-radius:4px;}
+
+.wrap{max-width:1180px; margin:0 auto; position:relative; z-index:2;}
+
+/* ---------- LANDING SCREEN OVERLAY ---------- */
+.landing-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--void);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  overflow: hidden;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s;
+}
+.landing-screen.dismissed {
+  opacity: 0;
+  transform: scale(1.05);
+  pointer-events: none;
+  visibility: hidden;
+}
+.landing-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  user-select: none;
+}
+.landing-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  opacity: 0.45;
+}
+.landing-overlay-v {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(5,5,5,0.4) 0%, transparent 40%, rgba(5,5,5,0.95) 100%);
+}
+.landing-overlay-h {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(5,5,5,0.7) 0%, transparent 50%, rgba(5,5,5,0.7) 100%);
+}
+.landing-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.landing-title {
+  font-family: var(--sora);
+  font-size: clamp(3.8rem, 13vw, 10rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.04em;
+  margin-bottom: 1.5rem;
+  background: linear-gradient(90deg, #00f0ff, #ffffff 50%, #ff5a00);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 30px rgba(0, 240, 255, 0.4), 0 0 60px rgba(255, 90, 0, 0.2);
+  line-height: 0.95;
+}
+.landing-subtitle {
+  font-family: var(--body);
+  font-size: clamp(1rem, 2.2vw, 1.4rem);
+  color: var(--muted);
+  max-width: 580px;
+  margin-bottom: 3rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.start-btn {
+  position: relative;
+  padding: 18px 46px;
+  background: rgba(5, 5, 5, 0.65);
+  backdrop-filter: blur(12px);
+  border: 2px solid #00f0ff;
+  color: #ffffff;
+  font-family: var(--sora);
+  font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  cursor: pointer;
+  transform: skewX(-10deg);
+  transition: all 0.3s ease;
+  overflow: hidden;
+  border-radius: 2px;
+}
+.start-btn-content {
+  transform: skewX(10deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  position: relative;
+  z-index: 2;
+}
+.start-btn:hover {
+  border-color: #ff5a00;
+  color: #00f0ff;
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.6), inset 0 0 15px rgba(255, 90, 0, 0.4);
+}
+.start-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0,240,255,0.25), rgba(255,90,0,0.25));
+  transform: translateY(100%);
+  transition: transform 0.3s ease-in-out;
+}
+.start-btn:hover::before {
+  transform: translateY(0);
+}
+.start-btn svg {
+  width: 28px;
+  height: 28px;
+  transition: transform 0.3s ease;
+}
+.start-btn:hover svg {
+  transform: translateX(6px);
+}
+
+/* ---------- MAIN HEADER & NAV ---------- */
+.hud-header{text-align:center; margin-bottom:34px; padding-top:6px;}
+.top-nav {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+.home-nav-btn {
+  background: var(--panel-alt);
+  border: 1px solid var(--line);
+  color: var(--cyan);
+  padding: 7px 16px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s, color 0.2s;
+}
+.home-nav-btn:hover {
+  border-color: var(--cyan);
+  box-shadow: 0 0 14px rgba(0,240,255,0.4);
+  color: #ffffff;
+}
+
+.title-accent{
+  font-size:26px; margin-bottom:8px; line-height:1;
+  filter:drop-shadow(0 0 14px rgba(0,229,255,0.55));
+}
+.hud-header h1{
+  font-size:clamp(2.6rem, 6.2vw, 4.4rem);
+  font-weight:900;
+  letter-spacing:.02em;
+  background:linear-gradient(90deg, var(--cyan), var(--green) 45%, var(--pink) 85%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  text-shadow:0 0 52px rgba(0,229,255,0.4);
+  line-height:1.1;
+}
+.hud-header p{
+  font-size:15px; color:var(--muted); margin-top:12px; max-width:560px; margin-inline:auto;
+}
+.rev-strip{
+  height:4px; width:min(520px,80%); margin:22px auto 0; border-radius:4px; position:relative; overflow:hidden;
+  background:var(--panel-alt); border:1px solid var(--line);
+}
+.rev-strip::after{
+  content:""; position:absolute; inset:0; width:40%;
+  background:linear-gradient(90deg, transparent, var(--cyan), var(--pink), transparent);
+  animation:sweep 2.6s linear infinite;
+}
+@keyframes sweep{0%{transform:translateX(-120%);}100%{transform:translateX(360%);}}
+
+/* ---------- DASHBOARD GRID ---------- */
+.dashboard{display:grid; grid-template-columns:380px 1fr; gap:22px; align-items:start;}
+@media (max-width:960px){.dashboard{grid-template-columns:1fr;}}
+
+.panel{
+  background:linear-gradient(180deg, var(--panel), var(--panel-alt));
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:22px;
+  position:relative;
+}
+.panel-title{
+  font-family:var(--display); font-size:13px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--text); margin-bottom:4px; display:flex; align-items:center; gap:8px;
+}
+.panel-sub{font-size:12.5px; color:var(--muted); margin-bottom:16px; line-height:1.5;}
+
+/* ---------- COMPARE BAR ---------- */
+.compare-bar{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:18px; padding-bottom:16px; border-bottom:1px dashed var(--line);}
+.compare-toggle{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12.5px; cursor:pointer; user-select:none;}
+.compare-toggle input{width:16px; height:16px; accent-color:var(--red); cursor:pointer;}
+.car-tabs{display:flex; gap:6px;}
+.car-tab{
+  background:var(--panel-alt); border:1px solid var(--line); color:var(--muted);
+  padding:7px 12px; border-radius:8px; cursor:pointer; font-family:var(--mono); font-size:11.5px; font-weight:600;
+}
+.car-tab.active{border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 12px rgba(0,229,255,0.35);}
+.car-tab[data-car="B"].active{border-color:var(--orange); color:var(--orange); box-shadow:0 0 12px rgba(255,90,0,0.35);}
+
+/* ---------- BUILDER / CHIP CARDS ---------- */
+.builder-panel{display:flex; flex-direction:column; gap:22px;}
+.card-group{margin-bottom:2px;}
+.card-group .group-label{
+  font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase;
+  margin-bottom:3px; display:flex; align-items:center; gap:7px;
+}
+.card-group .group-hint{font-size:12px; color:var(--muted); margin-bottom:10px;}
+.chip-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.chip{
+  --chip-accent:var(--cyan);
+  display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center;
+  background:rgba(255,255,255,0.02);
+  border:1px solid var(--line);
+  border-radius:12px; padding:12px 6px 10px;
+  color:var(--text); cursor:pointer;
+  transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.chip:hover{transform:translateY(-2px); border-color:var(--chip-accent);}
+.chip .chip-icon{font-size:22px; line-height:1;}
+.chip .chip-label{font-size:12.5px; font-weight:600; line-height:1.25;}
+.chip.selected{
+  border-color:var(--chip-accent);
+  background:rgba(0,229,255,0.12);
+  background:color-mix(in srgb, var(--chip-accent) 14%, transparent);
+  box-shadow:0 0 0 1px var(--chip-accent), 0 0 18px rgba(0,229,255,0.4);
+  box-shadow:0 0 0 1px var(--chip-accent), 0 0 18px color-mix(in srgb, var(--chip-accent) 55%, transparent);
+}
+
+/* ---------- MANUAL WEIGHT OVERRIDE ---------- */
+.manual-input-row{margin-top:10px; display:flex; flex-direction:column; gap:5px;}
+.manual-label{font-size:11px; color:var(--muted); font-family:var(--mono);}
+.manual-input{
+  background:rgba(255,255,255,0.03); border:1px solid var(--line); border-radius:8px;
+  padding:9px 11px; color:var(--text); font-family:var(--mono); font-size:13px; width:100%;
+}
+.manual-input:focus{border-color:var(--amber); outline:none;}
+.manual-hint{font-size:10.5px; color:var(--muted); opacity:0.85;}
+#group-weight.overridden .chip{opacity:0.35; filter:grayscale(0.5);}
+#group-weight.overridden .chip.selected{box-shadow:none;}
+
+/* ---------- GRADIENT SLIDER ---------- */
+.gradient-row{display:flex; align-items:center; gap:14px;}
+input[type=range]{
+  flex:1; -webkit-appearance:none; appearance:none; height:6px; border-radius:6px;
+  background:var(--panel-alt); outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+  background:var(--red); box-shadow:0 0 10px rgba(255,59,59,0.6); cursor:pointer; border:2px solid var(--void);
+}
+input[type=range]::-moz-range-thumb{
+  width:18px; height:18px; border-radius:50%; background:var(--red);
+  box-shadow:0 0 10px rgba(255,59,59,0.6); border:2px solid var(--void); cursor:pointer;
+}
+.gradient-readout{font-family:var(--mono); font-size:14px; min-width:74px; text-align:right; line-height:1.3;}
+.gradient-readout b{display:block; color:var(--red);}
+.gradient-tag{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em;}
+
+.run-btn{
+  margin-top:6px; width:100%; padding:16px; border-radius:12px; border:none; cursor:pointer;
+  font-family:var(--display); font-weight:800; font-size:15px; letter-spacing:.08em;
+  color:var(--void);
+  background:linear-gradient(90deg, var(--cyan), var(--green));
+  box-shadow:0 0 26px rgba(57,255,136,0.35);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+.run-btn:hover{transform:translateY(-2px); box-shadow:0 0 36px rgba(57,255,136,0.55);}
+.run-btn:active{transform:translateY(0);}
+
+/* ---------- RESULTS COLUMN ---------- */
+.results-panel{display:flex; flex-direction:column; gap:20px;}
+
+.stat-cards{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:14px;}
+@media (max-width:640px){.stat-cards{grid-template-columns:1fr 1fr;}}
+@media (max-width:420px){.stat-cards{grid-template-columns:1fr;}}
+.stat-card{
+  background:linear-gradient(180deg, var(--panel), var(--panel-alt));
+  border:1px solid var(--line); border-radius:14px; padding:18px 16px; text-align:center;
+}
+.stat-card .stat-icon{font-size:20px; margin-bottom:6px;}
+.stat-card .stat-label{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; color:var(--muted); text-transform:uppercase;}
+.stat-card .stat-value{
+  font-family:var(--mono); font-weight:700; font-size:clamp(1.3rem,3vw,1.8rem);
+  margin-top:6px;
+}
+.stat-card.c-cyan .stat-value{color:var(--cyan); text-shadow:0 0 18px rgba(0,229,255,0.6);}
+.stat-card.c-pink .stat-value{color:var(--pink); text-shadow:0 0 18px rgba(255,46,136,0.6);}
+.stat-card.c-amber .stat-value{color:var(--amber); text-shadow:0 0 18px rgba(255,184,0,0.55);}
+.stat-card.c-red .stat-value{color:var(--red); text-shadow:0 0 18px rgba(255,59,59,0.55);}
+.stat-card .stat-note{font-size:11px; color:var(--muted); margin-top:6px; min-height:14px;}
+.compare-value{display:flex; flex-direction:column; gap:5px; margin-top:8px; font-family:var(--mono); font-size:13px;}
+.cv-a{color:var(--cyan);}
+.cv-b{color:var(--orange);}
+.cv-a.winner, .cv-b.winner{font-weight:800; text-shadow:0 0 10px currentColor;}
+
+.cluster-grid{display:grid; grid-template-columns:280px 1fr; gap:16px;}
+@media (max-width:760px){.cluster-grid{grid-template-columns:1fr;}}
+
+.gauge-box{display:flex; flex-direction:column; align-items:center; gap:10px;}
+.gauge-box canvas{width:100%; max-width:260px; height:auto;}
+.gauge-box.dual{gap:6px;}
+.gauge-box.dual canvas{max-width:150px;}
+
+.track-box{display:flex; flex-direction:column; gap:10px;}
+#trackCanvas{width:100%; height:auto; border-radius:10px; border:1px solid var(--line); background:var(--void);}
+
+.readouts{display:flex; gap:14px; flex-wrap:wrap; font-family:var(--mono); font-size:12px; color:var(--muted);}
+.readouts span b{color:var(--text); font-weight:600;}
+.readouts .ro-b{color:var(--orange);}
+.readouts .ro-b b{color:var(--orange);}
+
+.playback-controls{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.pb-btn{
+  background:var(--panel-alt); border:1px solid var(--line); color:var(--text);
+  padding:8px 14px; border-radius:9px; cursor:pointer; font-family:var(--mono); font-size:12px;
+  transition:border-color .15s ease, color .15s ease;
+}
+.pb-btn:hover{border-color:var(--cyan); color:var(--cyan);}
+.speed-group{display:flex; gap:6px; margin-left:auto;}
+.speed-btn{
+  background:transparent; border:1px solid var(--line); color:var(--muted);
+  padding:7px 10px; border-radius:8px; cursor:pointer; font-family:var(--mono); font-size:11px;
+}
+.speed-btn.active{border-color:var(--pink); color:var(--pink); box-shadow:0 0 12px rgba(255,46,136,0.4);}
+
+.chart-wrap{height:270px; position:relative;}
+
+/* ---------- SAFETY MATRIX ---------- */
+.safety-table{width:100%; border-collapse:collapse; font-size:13.5px;}
+.safety-table th{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--muted); text-align:left; padding:8px 10px; border-bottom:1px solid var(--line);
+}
+.safety-table td{padding:10px; border-bottom:1px solid var(--line);}
+.safety-table td.mono{font-family:var(--mono);}
+.safety-table td.adv-speed{color:var(--cyan); font-weight:700; text-shadow:0 0 10px rgba(0,229,255,0.4);}
+.matrix-note{font-size:11px; color:var(--muted); margin-top:12px; line-height:1.5;}
+.badge{
+  font-family:var(--mono); font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px;
+  letter-spacing:.04em;
+}
+.badge-safe{color:var(--green); background:rgba(57,255,136,0.12); box-shadow:0 0 10px rgba(57,255,136,0.35);}
+.badge-caution{color:var(--amber); background:rgba(255,184,0,0.12); box-shadow:0 0 10px rgba(255,184,0,0.35);}
+.badge-danger{color:var(--red); background:rgba(255,59,59,0.12); box-shadow:0 0 10px rgba(255,59,59,0.35);}
+
+/* ---------- DATA SOURCES ---------- */
+.source-list{margin:0 0 12px; padding-left:18px; font-size:12.5px; color:var(--text); line-height:1.6;}
+.source-list li{margin-bottom:8px;}
+.source-list b{color:var(--cyan);}
+
+footer{max-width:1180px; margin:34px auto 0; text-align:center; color:var(--muted); font-size:11.5px; line-height:1.6; position:relative; z-index:2;}
+
+@media (prefers-reduced-motion:reduce){
+  .rev-strip::after{animation:none;}
+  .chip, .run-btn{transition:none;}
+}
+</style>
+</head>
+<body>
+
+  <!-- ============ LANDING / GET STARTED SCREEN ============ -->
+  <div id="landingScreen" class="landing-screen">
+    <div class="landing-bg">
+      <img src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4r1OA5h3KwK0JEvoyhQrbf78vU38zbnpX1IMgKulJyQjHCIO0M7HwE5Ao7B0tcoOJsXdFx7qUPANOVShpSq7TuVjOOyKjyObq5eZXfYudnIR70iJ681CqsoVuyLvSvKJjddpmN0YtkI7n1TtEHr4oyYj-lYpHsDxEPVgGvglzRm8dvz8Mp9YmHCxYJGadC7AivoU78Wg2Kfz3PmXV1rZBcJW8tW7jmmkXGjef2xV1nOhjH3HSxPG3" alt="Cinematic high-speed motion blur" />
+      <div class="landing-overlay-v"></div>
+      <div class="landing-overlay-h"></div>
+    </div>
+    <div class="landing-content">
+      <h1 class="landing-title">Red Line</h1>
+      <p class="landing-subtitle">Vehicle Dynamics &amp; Physics Simulation Engine</p>
+      <button id="startBtn" class="start-btn" type="button">
+        <div class="start-btn-content">
+          <span>Get Started</span>
+          <svg fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13 5l7 7-7 7M5 5l7 7-7 7" stroke-linecap="square" stroke-linejoin="miter"></path>
+          </svg>
+        </div>
+      </button>
+    </div>
+  </div>
+
+<div class="wrap">
+
+  <header class="hud-header">
+    <div class="top-nav">
+      <button id="homeBtn" class="home-nav-btn" type="button">🏠 GET STARTED COVER</button>
+    </div>
+    <div class="title-accent">🏁</div>
+    <h1>REDLINE LAB</h1>
+    <p>Build a car — or two — from plain-language choices and watch the physics engine calculate how it actually moves.</p>
+    <div class="rev-strip"></div>
+  </header>
+
+  <main class="dashboard">
+
+    <!-- ============ BUILDER PANEL ============ -->
+    <section class="panel builder-panel" aria-label="Vehicle builder">
+      <div>
+        <div class="panel-title">🛠️ Build Your Vehicle</div>
+        <div class="panel-sub">Tap a card in each row. Your picks feed straight into the simulator.</div>
+      </div>
+
+      <div class="compare-bar">
+        <label class="compare-toggle">
+          <input type="checkbox" id="compareToggle" />
+          <span>🏁 Compare Two Cars</span>
+        </label>
+        <div class="car-tabs" id="carTabs" style="display:none">
+          <button type="button" class="car-tab active" data-car="A">🅰️ CAR A</button>
+          <button type="button" class="car-tab" data-car="B">🅱️ CAR B</button>
+        </div>
+      </div>
+
+      <div class="card-group">
+        <div class="group-label" style="color:var(--cyan)">① Body Style</div>
+        <div class="group-hint">How easily does it slice through air?</div>
+        <div id="group-body" class="chip-grid"></div>
+      </div>
+
+      <div class="card-group">
+        <div class="group-label" style="color:var(--amber)">② Weight Class</div>
+        <div class="group-hint">How heavy is the car, fully loaded?</div>
+        <div id="group-weight" class="chip-grid"></div>
+        <div class="manual-input-row">
+          <label for="manual-weight" class="manual-label">Or type an exact weight (kg):</label>
+          <input type="number" id="manual-weight" class="manual-input" placeholder="e.g. 1350" min="300" max="4000" step="10" />
+          <span class="manual-hint">Overrides the cards above · typical range 300–4000 kg</span>
+        </div>
+      </div>
+
+      <div class="card-group">
+        <div class="group-label" style="color:var(--pink)">③ Engine Power</div>
+        <div class="group-hint">How much muscle is under the hood?</div>
+        <div id="group-engine" class="chip-grid"></div>
+      </div>
+
+      <div class="card-group">
+        <div class="group-label" style="color:var(--green)">④ Tire Grip</div>
+        <div class="group-hint">How much traction can the tires put down?</div>
+        <div id="group-tire" class="chip-grid"></div>
+      </div>
+
+      <div class="card-group">
+        <div class="group-label" style="color:var(--red)">⑤ Road Gradient</div>
+        <div class="group-hint">Flat road, climbing a hill, or heading downhill?</div>
+        <div class="gradient-row">
+          <input type="range" id="gradient-slider" min="-10" max="20" value="0" step="1" aria-label="Road gradient in degrees" />
+          <div class="gradient-readout"><b id="gradient-value">0°</b><span class="gradient-tag" id="gradient-tag">Flat</span></div>
+        </div>
+      </div>
+
+      <button id="runBtn" class="run-btn">🏁 RUN SIMULATION</button>
+    </section>
+
+    <!-- ============ RESULTS PANEL ============ -->
+    <section class="results-panel" aria-label="Simulation results">
+
+      <div class="stat-cards" id="statCardsContainer"></div>
+
+      <div class="panel">
+        <div class="panel-title">📟 Live Playback</div>
+        <div class="panel-sub">Your build(s) in motion — car shape, camera shake, and gauge all react to the physics.</div>
+        <div class="cluster-grid">
+          <div class="gauge-box" id="gaugeBox">
+            <canvas id="gaugeCanvas" width="280" height="280" role="img" aria-label="Speedometer gauge, Car A"></canvas>
+            <canvas id="gaugeCanvasB" width="280" height="280" role="img" aria-label="Speedometer gauge, Car B" style="display:none"></canvas>
+          </div>
+          <div class="track-box">
+            <canvas id="trackCanvas" width="900" height="300" role="img" aria-label="2D animated cars on a road"></canvas>
+            <div class="readouts" id="readoutsA">
+              <span>SIM TIME <b id="rd-time">0.00 s</b></span>
+              <span>SPEED <b id="rd-speed">0.0 km/h</b></span>
+              <span>DISTANCE <b id="rd-dist">0 m</b></span>
+              <span>G-FORCE <b id="rd-gforce">0.00 g</b></span>
+            </div>
+            <div class="readouts" id="readoutsB" style="display:none">
+              <span class="ro-b">B SPEED <b id="rd-speed-b">0.0 km/h</b></span>
+              <span class="ro-b">B DISTANCE <b id="rd-dist-b">0 m</b></span>
+              <span class="ro-b">B G-FORCE <b id="rd-gforce-b">0.00 g</b></span>
+            </div>
+            <div class="playback-controls">
+              <button id="playToggle" class="pb-btn">▶ PLAY</button>
+              <button id="restartBtn" class="pb-btn">↺ RESTART</button>
+              <div class="speed-group" role="group" aria-label="Playback speed">
+                <button class="speed-btn active" data-mult="1">1×</button>
+                <button class="speed-btn" data-mult="2">2×</button>
+                <button class="speed-btn" data-mult="4">4×</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">📈 Speed vs. Time Telemetry</div>
+        <div class="panel-sub">Speed (and g-force, in single-car mode) from the physics loop — the dashed line tracks the playback above.</div>
+        <div class="chart-wrap"><canvas id="speedChart"></canvas></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">🛡️ Braking Safety Matrix</div>
+        <div class="panel-sub">Combines your tire grip with each surface to give a max advisable speed and the braking distance from 100 km/h<span id="safety-note-car"></span>.</div>
+        <table class="safety-table">
+          <thead>
+            <tr><th>Road Surface</th><th>Grip Level (μ)</th><th>Advisable Speed</th><th>Braking Dist. from 100 km/h</th><th>Rating</th></tr>
+          </thead>
+          <tbody id="safety-body"></tbody>
+        </table>
+        <p class="matrix-note">Advisable speed keeps total stopping distance (reaction + braking) under ~60 m, assuming a 1.5 s reaction time. It's a simplified teaching estimate — always follow posted speed limits and slow further in low visibility or heavy traffic.</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">📚 Data Sources &amp; Assumptions</div>
+        <div class="panel-sub">Where these numbers come from, and what they are (and aren't) certified for.</div>
+        <ul class="source-list">
+          <li><b>Drag coefficient (Cd) &amp; frontal area</b> — representative mid-range figures for each body class, in line with typical published ranges in vehicle-aerodynamics references (hatchbacks ≈0.30–0.35, sedans ≈0.28–0.36, SUVs/vans ≈0.40–0.50).</li>
+          <li><b>Rolling resistance (Crr = 0.015)</b> — a standard textbook value for a road tire on dry asphalt (typical range 0.01–0.02).</li>
+          <li><b>Tire grip &amp; road-surface grip (μ)</b> — standard illustrative ranges used across vehicle-dynamics coursework (dry ≈0.8–0.9, wet ≈0.5–0.6, snow ≈0.2–0.3, ice ≈0.1–0.2).</li>
+          <li><b>Engine power tiers</b> — rounded, representative values spanning economy to performance cars, not the spec sheet of any single named model.</li>
+          <li><b>Reaction time (1.5 s) &amp; target stopping zone (60 m)</b> — common assumptions used in driver-education material to illustrate stopping distance, not a measurement from any specific agency.</li>
+        </ul>
+        <p class="matrix-note"><b>On accuracy:</b> these are educational approximations for building intuition, not measured, certified, or licensed data from a specific manufacturer, textbook, or company — this project makes no claim of official authorization. For a graded submission, cite the actual textbook or paper your course uses for these constants, or swap in any value your instructor has approved.</p>
+      </div>
+
+    </section>
+  </main>
+
+  <footer>
+    Educational model · assumes straight-line motion, a fixed rolling-resistance factor, no gearbox/transmission limits, and (except where noted) a flat road for braking distances.<br />
+    Real-world results depend on gearing, drivetrain losses, and tire temperature — use this to build intuition, not to certify a design.
+  </footer>
+
+</div>
+
+<script>
+/* =========================================================================
+   REDLINE LAB — Vehicle Dynamics Simulator
+   ---------------------------------------------------------------------
+   This is the "backend" physics. The user never sees an engineering term —
+   every card/slider they touch below just looks up or sets a number, and
+   those numbers are what actually drive the simulation loop.
+   ========================================================================= */
+
+// ----- Fixed physical constants (not shown to the user) -----
+const AIR_DENSITY = 1.225;        // kg/m^3, sea-level air
+const GRAVITY = 9.81;             // m/s^2
+const ROLLING_RESISTANCE = 0.015; // typical Crr for a road tire on asphalt
+
+// ----- Body Style -> drag coefficient (Cd) + frontal area (m^2) -----
+const BODY_STYLES = {
+  hatchback: { label: "Compact Hatchback", icon: "🚘", cd: 0.32, area: 1.95 },
+  sedan:     { label: "Standard Sedan",    icon: "🚗", cd: 0.35, area: 2.20 },
+  suv:       { label: "Boxy SUV / Van",    icon: "🚙", cd: 0.45, area: 2.60 }
+};
+
+// ----- Weight Class -> mass (kg) -----
+const WEIGHT_CLASSES = {
+  light:  { label: "Lightweight",  icon: "🪶", mass: 1100 },
+  medium: { label: "Medium Build", icon: "⚖️", mass: 1450 },
+  heavy:  { label: "Heavy Duty",   icon: "🏋️", mass: 1950 }
+};
+
+// ----- Engine Power -> power (kW) -----
+const ENGINE_TIERS = {
+  eco:   { label: "Eco / City",         icon: "🌿", powerKW: 67  },
+  std:   { label: "Standard",           icon: "⚙️", powerKW: 112 },
+  sport: { label: "Sport Performance",  icon: "🔥", powerKW: 186 },
+  super: { label: "Supercar",           icon: "🚀", powerKW: 373 }
+};
+
+// ----- Tire Grip -> traction coefficient (mu) -----
+const TIRE_GRADES = {
+  eco:   { label: "Economy Tires", icon: "🛞", mu: 0.80 },
+  sport: { label: "Sport Tires",   icon: "🏁", mu: 1.00 },
+  slick: { label: "Racing Slicks", icon: "⚫", mu: 1.15 }
+};
+
+// ----- Road types for the safety matrix -> surface friction (mu) -----
+const ROAD_TYPES = [
+  { label: "Dry Asphalt",   icon: "☀️", mu: 0.90 },
+  { label: "Wet Asphalt",   icon: "🌧️", mu: 0.60 },
+  { label: "Gravel / Dirt", icon: "🪨", mu: 0.50 },
+  { label: "Snow",          icon: "❄️", mu: 0.30 },
+  { label: "Ice",           icon: "🧊", mu: 0.15 }
+];
+
+// ----- Advisable-speed assumptions (plain-language, explained in the UI) -----
+const REACTION_TIME = 1.5;   // s — typical driver reaction time used in road-safety references
+const SAFE_STOP_ZONE = 60;   // m — target total stopping distance (reaction + braking)
+
+// Solves reaction_distance + braking_distance = SAFE_STOP_ZONE for v, given a grip level.
+function advisableSpeed(effectiveMu) {
+  const A = 1 / (2 * effectiveMu * GRAVITY);
+  const v = (-REACTION_TIME + Math.sqrt(REACTION_TIME * REACTION_TIME + 4 * A * SAFE_STOP_ZONE)) / (2 * A);
+  return Math.floor((v * 3.6) / 5) * 5; // round DOWN to the nearest 5 km/h — stay conservative
+}
+
+/* ---------------------------------------------------------------------
+   DOM REFERENCES & LANDING NAVIGATION
+--------------------------------------------------------------------- */
+const landingScreen = document.getElementById("landingScreen");
+const startBtn = document.getElementById("startBtn");
+const homeBtn = document.getElementById("homeBtn");
+
+startBtn.addEventListener("click", () => {
+  landingScreen.classList.add("dismissed");
+  runActiveSimulation();
+});
+
+homeBtn.addEventListener("click", () => {
+  landingScreen.classList.remove("dismissed");
+});
+
+const manualWeightInput = document.getElementById("manual-weight");
+const gradientSlider = document.getElementById("gradient-slider");
+const gradientValueEl = document.getElementById("gradient-value");
+const gradientTagEl = document.getElementById("gradient-tag");
+const gaugeCanvas = document.getElementById("gaugeCanvas");
+const gctx = gaugeCanvas.getContext("2d");
+const gaugeCanvasB = document.getElementById("gaugeCanvasB");
+const gctxB = gaugeCanvasB.getContext("2d");
+const trackCanvas = document.getElementById("trackCanvas");
+const tctx = trackCanvas.getContext("2d");
+const compareToggle = document.getElementById("compareToggle");
+const carTabs = document.getElementById("carTabs");
+const runBtn = document.getElementById("runBtn");
+const playToggle = document.getElementById("playToggle");
+const restartBtn = document.getElementById("restartBtn");
+const speedGroup = document.querySelector(".speed-group");
+
+/* ---------------------------------------------------------------------
+   BUILD STATE — two independent vehicle configs, A and B, so Compare Mode
+   can hold both at once. `state` always points at whichever build the
+   builder cards are currently editing (Car A unless the B tab is active).
+--------------------------------------------------------------------- */
+function defaultBuildA() { return { body: "hatchback", weight: "medium", engine: "std", tire: "sport", manualWeight: null, gradientDeg: 0 }; }
+function defaultBuildB() { return { body: "suv", weight: "heavy", engine: "eco", tire: "eco", manualWeight: null, gradientDeg: 0 }; }
+let builds = { A: defaultBuildA(), B: defaultBuildB() };
+let activeCar = "A";
+let state = builds.A;
+let compareMode = false;
+
+/* ---------------------------------------------------------------------
+   PHYSICS ENGINE
+   Longitudinal motion: m·dv/dt = F_traction − F_aero − F_rolling − F_hill
+     F_traction = min(Power / v, μ·m·g)     torque-limited launch, then
+                                             power-limited at higher speed
+     F_aero     = ½·ρ·Cd·A·v²
+     F_rolling  = Crr·m·g
+     F_hill     = m·g·sin(gradient)         positive uphill, negative downhill
+   Integrated with a simple time-stepping (Euler) loop.
+--------------------------------------------------------------------- */
+function simulate(cd, area, mass, powerW, mu, gradientRad) {
+  const dt = 0.02;
+  let v = 0, t = 0, d = 0;
+  const grade = gradientRad || 0;
+  const maxTractionForce = mu * mass * GRAVITY;
+  const hillForce = mass * GRAVITY * Math.sin(grade);
+  const series = [{ t: 0, v: 0, d: 0, a: 0 }];
+  let zeroToHundredTime = null;
+  const targetV = 100 / 3.6;
+  const maxTime = 90;
+
+  while (t < maxTime) {
+    const vSafe = Math.max(v, 1.0); // avoid divide-by-zero at standstill
+    const tractionForce = Math.min(powerW / vSafe, maxTractionForce);
+    const dragForce = 0.5 * AIR_DENSITY * cd * area * v * v;
+    const rollForce = ROLLING_RESISTANCE * mass * GRAVITY;
+    const a = (tractionForce - dragForce - rollForce - hillForce) / mass;
+
+    const prevV = v;
+    v = Math.max(0, v + a * dt);
+    d += ((prevV + v) / 2) * dt;
+    t += dt;
+    series.push({ t: +t.toFixed(3), v, d, a });
+
+    if (zeroToHundredTime === null && v >= targetV) {
+      const prev = series[series.length - 2];
+      const frac = (targetV - prev.v) / ((v - prev.v) || 1);
+      zeroToHundredTime = prev.t + frac * dt;
+    }
+    if (t > 3 && Math.abs(a) < 0.015) break;       // acceleration has flattened out
+    if (t > 5 && v < 0.05 && a <= 0) break;         // stalled — hill too steep for engine/tire combo
+  }
+  return { series, zeroToHundredTime, terminalVelocity: v };
+}
+
+// Reads one build (A or B) and resolves it to physics inputs.
+function getVehicleParams(build) {
+  const body = BODY_STYLES[build.body];
+  const wt = WEIGHT_CLASSES[build.weight];
+  const eng = ENGINE_TIERS[build.engine];
+  const tire = TIRE_GRADES[build.tire];
+  const mass = (build.manualWeight != null && build.manualWeight > 0) ? build.manualWeight : wt.mass;
+  const gradientRad = (build.gradientDeg || 0) * Math.PI / 180;
+  return { cd: body.cd, area: body.area, mass, powerW: eng.powerKW * 1000, mu: tire.mu, gradientRad };
+}
+
+/* ---------------------------------------------------------------------
+   BUILDER CARDS
+--------------------------------------------------------------------- */
+function buildCardGroup(containerId, dataObj, stateKey, accentVar) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = "";
+  Object.entries(dataObj).forEach(([key, item]) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "chip" + (state[stateKey] === key ? " selected" : "");
+    btn.style.setProperty("--chip-accent", accentVar);
+    btn.setAttribute("aria-pressed", state[stateKey] === key ? "true" : "false");
+    btn.innerHTML = `<span class="chip-icon">${item.icon}</span><span class="chip-label">${item.label}</span>`;
+    btn.addEventListener("click", () => {
+      state[stateKey] = key;
+      [...container.children].forEach(c => { c.classList.remove("selected"); c.setAttribute("aria-pressed", "false"); });
+      btn.classList.add("selected");
+      btn.setAttribute("aria-pressed", "true");
+    });
+    container.appendChild(btn);
+  });
+}
+
+function updateGradientReadout() {
+  const deg = state.gradientDeg;
+  gradientValueEl.textContent = (deg > 0 ? "+" : "") + deg + "°";
+  gradientTagEl.textContent = deg === 0 ? "Flat" : (deg > 0 ? "Uphill" : "Downhill");
+}
+
+function refreshBuilderUI() {
+  buildCardGroup("group-body", BODY_STYLES, "body", "var(--cyan)");
+  buildCardGroup("group-weight", WEIGHT_CLASSES, "weight", "var(--amber)");
+  buildCardGroup("group-engine", ENGINE_TIERS, "engine", "var(--pink)");
+  buildCardGroup("group-tire", TIRE_GRADES, "tire", "var(--green)");
+  manualWeightInput.value = state.manualWeight != null ? state.manualWeight : "";
+  document.getElementById("group-weight").classList.toggle("overridden", state.manualWeight != null);
+  gradientSlider.value = state.gradientDeg;
+  updateGradientReadout();
+}
+
+manualWeightInput.addEventListener("input", () => {
+  const val = parseFloat(manualWeightInput.value);
+  const weightGroupEl = document.getElementById("group-weight");
+  if (!isNaN(val) && val > 0) {
+    state.manualWeight = val;
+    weightGroupEl.classList.add("overridden");
+  } else {
+    state.manualWeight = null;
+    weightGroupEl.classList.remove("overridden");
+  }
+});
+document.getElementById("group-weight").addEventListener("click", (e) => {
+  if (e.target.closest(".chip")) {
+    manualWeightInput.value = "";
+    state.manualWeight = null;
+    document.getElementById("group-weight").classList.remove("overridden");
+  }
+});
+
+gradientSlider.addEventListener("input", () => {
+  state.gradientDeg = parseInt(gradientSlider.value, 10);
+  updateGradientReadout();
+});
+
+/* ---------------------------------------------------------------------
+   COMPARE MODE — tabs switch which build the cards are editing
+--------------------------------------------------------------------- */
+function setActiveTab(car) {
+  activeCar = car;
+  state = builds[car];
+  [...carTabs.children].forEach(btn => btn.classList.toggle("active", btn.dataset.car === car));
+  refreshBuilderUI();
+}
+[...carTabs.children].forEach(btn => btn.addEventListener("click", () => setActiveTab(btn.dataset.car)));
+
+compareToggle.addEventListener("change", () => {
+  compareMode = compareToggle.checked;
+  carTabs.style.display = compareMode ? "flex" : "none";
+  runBtn.textContent = compareMode ? "🏆 RACE BOTH CARS" : "🏁 RUN SIMULATION";
+  document.getElementById("gaugeBox").classList.toggle("dual", compareMode);
+  gaugeCanvasB.style.display = compareMode ? "block" : "none";
+  document.getElementById("readoutsB").style.display = compareMode ? "flex" : "none";
+  document.getElementById("safety-note-car").textContent = compareMode ? " — based on Car A's tires while comparing" : "";
+  if (!compareMode) setActiveTab("A");
+  runActiveSimulation();
+});
+
+/* ---------------------------------------------------------------------
+   SAFETY MATRIX
+--------------------------------------------------------------------- */
+function renderSafetyMatrix(tireMu) {
+  const tbody = document.getElementById("safety-body");
+  tbody.innerHTML = "";
+  const vRef = 100 / 3.6; // benchmark braking speed
+  ROAD_TYPES.forEach(r => {
+    const effectiveMu = Math.min(tireMu, r.mu);
+    const brakingDistance = (vRef * vRef) / (2 * effectiveMu * GRAVITY);
+    const advSpeed = advisableSpeed(effectiveMu);
+    let rating, ratingClass;
+    if (effectiveMu >= 0.8) { rating = "SAFE"; ratingClass = "badge-safe"; }
+    else if (effectiveMu >= 0.5) { rating = "CAUTION"; ratingClass = "badge-caution"; }
+    else { rating = "DANGER"; ratingClass = "badge-danger"; }
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.icon} ${r.label}</td><td class="mono">${effectiveMu.toFixed(2)}</td>` +
+      `<td class="mono adv-speed">${advSpeed} km/h</td>` +
+      `<td class="mono">${brakingDistance.toFixed(1)} m</td><td><span class="badge ${ratingClass}">${rating}</span></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+/* ---------------------------------------------------------------------
+   STAT CARDS
+--------------------------------------------------------------------- */
+function statCardHTML(colorClass, icon, label, value, note) {
+  return `<div class="stat-card ${colorClass}">
+    <div class="stat-icon">${icon}</div>
+    <div class="stat-label">${label}</div>
+    <div class="stat-value">${value}</div>
+    <div class="stat-note">${note || ""}</div>
+  </div>`;
+}
+
+function renderStatsSingle(result, params) {
+  const zt = result.zeroToHundredTime;
+  const zeroStr = zt ? zt.toFixed(2) + " s" : "—";
+  const zeroNote = zt ? "" : "Not enough power to reach 100 km/h";
+  const vmax = (result.terminalVelocity * 3.6).toFixed(1) + " km/h";
+  const pw = ((params.powerW / 1000) / (params.mass / 1000)).toFixed(1) + " kW/t";
+  const vRef = 100 / 3.6;
+  const braking = ((vRef * vRef) / (2 * params.mu * GRAVITY)).toFixed(1) + " m";
+  document.getElementById("statCardsContainer").innerHTML =
+    statCardHTML("c-cyan", "⏱️", "0–100 km/h", zeroStr, zeroNote) +
+    statCardHTML("c-pink", "🚀", "Terminal Velocity", vmax, "Theoretical top speed") +
+    statCardHTML("c-amber", "⚡", "Power-to-Weight", pw, "kW per tonne") +
+    statCardHTML("c-red", "🛑", "100–0 km/h Braking", braking, "On dry pavement, tire limit");
+}
+
+function compareRowHTML(icon, label, colorClass, aVal, bVal, lowerIsBetter, fmt) {
+  let aWin = false, bWin = false;
+  if (aVal != null && bVal != null && aVal !== bVal) {
+    if (lowerIsBetter ? aVal < bVal : aVal > bVal) aWin = true; else bWin = true;
+  }
+  const aStr = aVal != null ? fmt(aVal) : "—";
+  const bStr = bVal != null ? fmt(bVal) : "—";
+  return `<div class="stat-card ${colorClass}">
+    <div class="stat-icon">${icon}</div>
+    <div class="stat-label">${label}</div>
+    <div class="compare-value">
+      <span class="cv-a${aWin ? " winner" : ""}">A · ${aStr}${aWin ? " 🏆" : ""}</span>
+      <span class="cv-b${bWin ? " winner" : ""}">B · ${bStr}${bWin ? " 🏆" : ""}</span>
+    </div>
+  </div>`;
+}
+
+function renderStatsCompare(resultA, paramsA, resultB, paramsB) {
+  const vRef = 100 / 3.6;
+  const mA = {
+    zero: resultA.zeroToHundredTime, vmax: resultA.terminalVelocity * 3.6,
+    pw: (paramsA.powerW / 1000) / (paramsA.mass / 1000), braking: (vRef * vRef) / (2 * paramsA.mu * GRAVITY)
+  };
+  const mB = {
+    zero: resultB.zeroToHundredTime, vmax: resultB.terminalVelocity * 3.6,
+    pw: (paramsB.powerW / 1000) / (paramsB.mass / 1000), braking: (vRef * vRef) / (2 * paramsB.mu * GRAVITY)
+  };
+  document.getElementById("statCardsContainer").innerHTML =
+    compareRowHTML("⏱️", "0–100 km/h", "c-cyan", mA.zero, mB.zero, true, v => v.toFixed(2) + " s") +
+    compareRowHTML("🚀", "Terminal Velocity", "c-pink", mA.vmax, mB.vmax, false, v => v.toFixed(1) + " km/h") +
+    compareRowHTML("⚡", "Power-to-Weight", "c-amber", mA.pw, mB.pw, false, v => v.toFixed(1) + " kW/t") +
+    compareRowHTML("🛑", "100–0 km/h Braking", "c-red", mA.braking, mB.braking, true, v => v.toFixed(1) + " m");
+}
+
+/* ---------------------------------------------------------------------
+   TELEMETRY CHART (Chart.js)
+--------------------------------------------------------------------- */
+function sampleSeries(series, maxPoints) {
+  const step = Math.max(1, Math.floor(series.length / maxPoints));
+  return series.filter((_, i) => i % step === 0 || i === series.length - 1);
+}
+
+let speedChart = null;
+
+const nowLinePlugin = {
+  id: "nowLine",
+  afterDatasetsDraw(chart) {
+    const cursorT = chart.$cursorT;
+    if (cursorT == null) return;
+    const { ctx, chartArea, scales } = chart;
+    const x = scales.x.getPixelForValue(cursorT);
+    if (x < chartArea.left || x > chartArea.right) return;
+    ctx.save();
+    ctx.strokeStyle = "rgba(232,237,245,0.45)";
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, chartArea.top);
+    ctx.lineTo(x, chartArea.bottom);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+if (typeof Chart !== "undefined") {
+  Chart.register(nowLinePlugin);
+}
+
+function renderChart(carA, carB) {
+  if (typeof Chart === "undefined") {
+    const canvas = document.getElementById("speedChart");
+    const wrap = canvas ? canvas.parentElement : null;
+    if (wrap && !document.getElementById("chartFallbackMsg")) {
+      canvas.style.display = "none";
+      const msg = document.createElement("p");
+      msg.id = "chartFallbackMsg";
+      msg.style.cssText = "color:var(--muted);font-size:12.5px;text-align:center;padding-top:100px;margin:0;";
+      msg.textContent = "📉 Telemetry graph library didn't load — all calculations and live gauges are active.";
+      wrap.appendChild(msg);
+    }
+    return;
+  }
+  const compare = !!carB;
+  const sampledA = sampleSeries(carA.series, 180);
+  const speedA = sampledA.map(pt => ({ x: pt.t, y: +(pt.v * 3.6).toFixed(1) }));
+  const accelA = sampledA.map(pt => ({ x: pt.t, y: +(pt.a / GRAVITY).toFixed(2) }));
+  const markerA = carA.zeroToHundredTime != null ? [{ x: +carA.zeroToHundredTime.toFixed(2), y: 100 }] : [];
+
+  const ctx = document.getElementById("speedChart").getContext("2d");
+  const fillGradA = ctx.createLinearGradient(0, 0, 0, 260);
+  fillGradA.addColorStop(0, "rgba(0,240,255,0.32)"); fillGradA.addColorStop(1, "rgba(0,240,255,0)");
+
+  const datasets = [
+    { label: "glow-A", data: speedA, borderColor: "rgba(0,240,255,0.35)", borderWidth: 9, pointRadius: 0, tension: 0.35, fill: false, yAxisID: "y" },
+    { label: compare ? "Car A" : "Speed (km/h)", data: speedA, borderColor: "#00f0ff", backgroundColor: fillGradA, borderWidth: 2.5, pointRadius: 0, tension: 0.35, fill: !compare, yAxisID: "y" }
+  ];
+
+  if (!compare) {
+    datasets.push({ label: "Acceleration (g)", data: accelA, borderColor: "#ff2e88", backgroundColor: "transparent", borderWidth: 2, borderDash: [5, 4], pointRadius: 0, tension: 0.25, fill: false, yAxisID: "y1" });
+  }
+  datasets.push({ label: compare ? "A: 0–100" : "0–100 km/h", data: markerA, showLine: false, pointRadius: 6, pointHoverRadius: 7, pointBackgroundColor: "#39ff88", pointBorderColor: "#0a0e17", pointBorderWidth: 2, yAxisID: "y" });
+
+  if (compare) {
+    const sampledB = sampleSeries(carB.series, 180);
+    const speedB = sampledB.map(pt => ({ x: pt.t, y: +(pt.v * 3.6).toFixed(1) }));
+    const markerB = carB.zeroToHundredTime != null ? [{ x: +carB.zeroToHundredTime.toFixed(2), y: 100 }] : [];
+    datasets.push({ label: "glow-B", data: speedB, borderColor: "rgba(255,90,0,0.35)", borderWidth: 9, pointRadius: 0, tension: 0.35, fill: false, yAxisID: "y" });
+    datasets.push({ label: "Car B", data: speedB, borderColor: "#ff5a00", backgroundColor: "transparent", borderWidth: 2.5, pointRadius: 0, tension: 0.35, fill: false, yAxisID: "y" });
+    datasets.push({ label: "B: 0–100", data: markerB, showLine: false, pointRadius: 6, pointHoverRadius: 7, pointBackgroundColor: "#ffe14d", pointBorderColor: "#0a0e17", pointBorderWidth: 2, yAxisID: "y" });
+  }
+
+  const scales = {
+    x: { type: "linear", title: { display: true, text: "Time (s)", color: "#7d8aa8", font: { family: "JetBrains Mono", size: 11 } },
+         ticks: { color: "#7d8aa8", maxTicksLimit: 8, font: { family: "JetBrains Mono", size: 10 } }, grid: { color: "#1e2b47" } },
+    y: { position: "left", title: { display: true, text: "Speed (km/h)", color: "#00f0ff", font: { family: "JetBrains Mono", size: 11 } },
+         ticks: { color: "#7d8aa8", font: { family: "JetBrains Mono", size: 10 } }, grid: { color: "#1e2b47" }, beginAtZero: true }
+  };
+  if (!compare) {
+    scales.y1 = { position: "right", title: { display: true, text: "Acceleration (g)", color: "#ff2e88", font: { family: "JetBrains Mono", size: 11 } },
+         ticks: { color: "#7d8aa8", font: { family: "JetBrains Mono", size: 10 } }, grid: { display: false }, beginAtZero: true };
+  }
+
+  if (speedChart) speedChart.destroy();
+  speedChart = new Chart(ctx, {
+    type: "line",
+    data: { datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 400 },
+      interaction: { mode: "nearest", intersect: false },
+      scales,
+      plugins: {
+        legend: { display: true, labels: { color: "#7d8aa8", font: { family: "JetBrains Mono", size: 10 },
+          filter: item => !item.text.startsWith("glow") } },
+        tooltip: { backgroundColor: "#0d1424", borderColor: "#00f0ff", borderWidth: 1,
+          titleColor: "#e8edf5", bodyColor: "#00f0ff", titleFont: { family: "JetBrains Mono" }, bodyFont: { family: "JetBrains Mono" },
+          filter: item => !item.dataset.label.startsWith("glow") }
+      }
+    }
+  });
+  speedChart.$cursorT = null;
+}
+
+function updateChartCursor(t) {
+  if (!speedChart) return;
+  speedChart.$cursorT = t;
+  speedChart.update("none");
+}
+
+/* ---------------------------------------------------------------------
+   2D SCENE — Vehicle silhouettes, gauge dials, & animated track
+--------------------------------------------------------------------- */
+function getCarShape(bodyKey) {
+  switch (bodyKey) {
+    case "hatchback":
+      return {
+        body: [[-24, 10], [-14, -16], [18, -18], [34, -8], [58, -4], [62, 18], [-24, 18]],
+        cabin: [[-10, -13], [14, -15], [24, -4], [-12, -4]],
+        wheels: [2, 40], wheelY: 18, frontX: 62
+      };
+    case "suv":
+      return {
+        body: [[-30, 10], [-24, -22], [18, -24], [30, -16], [75, -14], [80, 18], [-30, 18]],
+        cabin: [[-18, -19], [14, -21], [22, -8], [-20, -8]],
+        wheels: [4, 58], wheelY: 18, frontX: 80
+      };
+    default: // sedan
+      return {
+        body: [[-30, 10], [-18, -14], [20, -16], [40, -4], [76, 0], [78, 18], [-30, 18]],
+        cabin: [[-14, -11], [18, -13], [30, -2], [-16, -2]],
+        wheels: [4, 54], wheelY: 18, frontX: 78
+      };
+  }
+}
+
+function pathFromPoints(ctx, pts) {
+  ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
+  ctx.closePath();
+}
+
+let trackOffsets = { A: 0, B: 0 };
+let smokeParticles = { A: [], B: [] };
+
+function updateAndDrawSmoke(offsetKey, px, py, vMs, aMs2) {
+  const arr = smokeParticles[offsetKey];
+  if (vMs < 4 && aMs2 > 4 && Math.random() < 0.6) {
+    arr.push({
+      x: px + (Math.random() * 8 - 4), y: py, r: 4 + Math.random() * 3, alpha: 0.6,
+      vx: -0.5 - Math.random() * 0.5, vy: -0.3 - Math.random() * 0.3
+    });
+  }
+  smokeParticles[offsetKey] = arr.filter(p => p.alpha > 0);
+  smokeParticles[offsetKey].forEach(p => {
+    p.x += p.vx; p.y += p.vy; p.r += 0.15; p.alpha -= 0.025;
+    tctx.beginPath(); tctx.arc(p.x, p.y, Math.max(1, p.r), 0, Math.PI * 2);
+    tctx.fillStyle = `rgba(200,210,225,${Math.max(0, p.alpha)})`;
+    tctx.fill();
+  });
+}
+
+function drawCar(x, roadY, vMs, aMs2, car) {
+  const shape = getCarShape(car.bodyKey);
+  const wheelSpin = trackOffsets[car.offsetKey] * 0.25;
+  tctx.save(); tctx.translate(x, roadY);
+
+  // Shadow
+  tctx.beginPath(); tctx.ellipse(25, shape.wheelY + 14, 45, 6, 0, 0, Math.PI * 2);
+  tctx.fillStyle = "rgba(0,0,0,0.45)"; tctx.fill();
+
+  // Car Body
+  pathFromPoints(tctx, shape.body);
+  const bodyGrad = tctx.createLinearGradient(-30, 0, 80, 0);
+  bodyGrad.addColorStop(0, car.colorFrom); bodyGrad.addColorStop(1, car.colorTo);
+  tctx.fillStyle = bodyGrad;
+  tctx.shadowColor = car.colorTo; tctx.shadowBlur = vMs > 0.5 ? 14 : 0;
+  tctx.fill(); tctx.shadowBlur = 0;
+
+  // Cabin / Windows
+  pathFromPoints(tctx, shape.cabin);
+  tctx.fillStyle = "#0d1424"; tctx.fill();
+  tctx.strokeStyle = "rgba(0,240,255,0.4)"; tctx.lineWidth = 1; tctx.stroke();
+
+  // Wheels
+  shape.wheels.forEach(wx => {
+    tctx.save(); tctx.translate(wx, shape.wheelY);
+    tctx.beginPath(); tctx.arc(0, 0, 11, 0, Math.PI * 2);
+    tctx.fillStyle = "#060911"; tctx.fill();
+    tctx.strokeStyle = "#3a4666"; tctx.lineWidth = 2; tctx.stroke();
+    tctx.rotate(wheelSpin % (Math.PI * 2));
+    tctx.strokeStyle = "#7d8aa8"; tctx.lineWidth = 1.5;
+    for (let i = 0; i < 4; i++) {
+      tctx.rotate(Math.PI / 2); tctx.beginPath(); tctx.moveTo(0, 0); tctx.lineTo(0, 9); tctx.stroke();
+    }
+    tctx.restore();
+  });
+
+  // Headlight beam
+  if (vMs > 0.1) {
+    tctx.beginPath();
+    tctx.moveTo(shape.frontX, shape.wheelY - 6);
+    tctx.lineTo(shape.frontX + 35, shape.wheelY - 14);
+    tctx.lineTo(shape.frontX + 35, shape.wheelY + 6);
+    tctx.closePath();
+    const hlGrad = tctx.createLinearGradient(shape.frontX, 0, shape.frontX + 35, 0);
+    hlGrad.addColorStop(0, "rgba(255,255,255,0.6)");
+    hlGrad.addColorStop(1, "rgba(0,240,255,0)");
+    tctx.fillStyle = hlGrad; tctx.fill();
+  }
+
+  tctx.restore();
+  updateAndDrawSmoke(car.offsetKey, x + shape.wheels[0], roadY + shape.wheelY, vMs, aMs2);
+}
+
+function drawGaugeOn(ctxTarget, canvasEl, vMs, maxV, label) {
+  const kmh = vMs * 3.6;
+  const w = canvasEl.width, h = canvasEl.height;
+  const cx = w / 2, cy = h / 2, r = Math.min(w, h) / 2 - 20;
+  const startA = 0.75 * Math.PI, endA = 2.25 * Math.PI;
+  const frac = Math.min(1, Math.max(0, kmh / maxV));
+
+  ctxTarget.clearRect(0, 0, w, h);
+
+  // Background arc track
+  ctxTarget.beginPath(); ctxTarget.arc(cx, cy, r, startA, endA);
+  ctxTarget.strokeStyle = "#1e2b47"; ctxTarget.lineWidth = 14; ctxTarget.lineCap = "round"; ctxTarget.stroke();
+
+  // Speed arc
+  const grad = ctxTarget.createLinearGradient(0, 0, w, 0);
+  grad.addColorStop(0, "#00f0ff"); grad.addColorStop(0.6, "#39ff88"); grad.addColorStop(0.85, "#ffb800"); grad.addColorStop(1, "#ff3b3b");
+  ctxTarget.beginPath(); ctxTarget.arc(cx, cy, r, startA, startA + frac * (endA - startA));
+  ctxTarget.strokeStyle = grad; ctxTarget.lineWidth = 14; ctxTarget.lineCap = "round";
+  ctxTarget.shadowColor = "#00f0ff"; ctxTarget.shadowBlur = 12; ctxTarget.stroke(); ctxTarget.shadowBlur = 0;
+
+  // Tick marks
+  ctxTarget.strokeStyle = "#3a4666"; ctxTarget.lineWidth = 1.5;
+  const majorStep = maxV / 10;
+  for (let s = 0; s <= maxV + 0.01; s += majorStep) {
+    const a = startA + (s / maxV) * (endA - startA);
+    const x1 = cx + Math.cos(a) * (r - 14), y1 = cy + Math.sin(a) * (r - 14);
+    const x2 = cx + Math.cos(a) * (r - 5), y2 = cy + Math.sin(a) * (r - 5);
+    ctxTarget.beginPath(); ctxTarget.moveTo(x1, y1); ctxTarget.lineTo(x2, y2); ctxTarget.stroke();
+  }
+
+  // Needle
+  const needleA = startA + frac * (endA - startA);
+  ctxTarget.beginPath(); ctxTarget.moveTo(cx, cy);
+  ctxTarget.lineTo(cx + Math.cos(needleA) * (r - 20), cy + Math.sin(needleA) * (r - 20));
+  ctxTarget.strokeStyle = "#ff2e88"; ctxTarget.lineWidth = 3;
+  ctxTarget.shadowColor = "#ff2e88"; ctxTarget.shadowBlur = 10; ctxTarget.stroke(); ctxTarget.shadowBlur = 0;
+
+  // Pivot dot
+  ctxTarget.beginPath(); ctxTarget.arc(cx, cy, 6, 0, Math.PI * 2); ctxTarget.fillStyle = "#ff2e88"; ctxTarget.fill();
+
+  // Readouts
+  ctxTarget.fillStyle = "#e8edf5"; ctxTarget.textAlign = "center";
+  ctxTarget.font = '700 28px "JetBrains Mono", monospace';
+  ctxTarget.fillText(Math.round(kmh), cx, cy + r * 0.52);
+  ctxTarget.fillStyle = "#7d8aa8";
+  ctxTarget.font = '600 11px "JetBrains Mono", monospace';
+  ctxTarget.fillText("KM/H", cx, cy + r * 0.72);
+  ctxTarget.fillStyle = label === "CAR B" ? "#ff5a00" : "#00f0ff";
+  ctxTarget.font = '700 12px "Orbitron", sans-serif';
+  ctxTarget.fillText(label, cx, cy - r * 0.45);
+}
+
+function drawGauge(vMsA, vMsB, maxVA, maxVB) {
+  drawGaugeOn(gctx, gaugeCanvas, vMsA, Math.max(120, Math.ceil((maxVA * 3.6) / 20) * 20), compareMode ? "CAR A" : "SPEED");
+  if (compareMode) {
+    drawGaugeOn(gctxB, gaugeCanvasB, vMsB, Math.max(120, Math.ceil((maxVB * 3.6) / 20) * 20), "CAR B");
+  }
+}
+
+function drawTrackScene(frameA, frameB, dtStep) {
+  const w = trackCanvas.width, h = trackCanvas.height;
+  tctx.clearRect(0, 0, w, h);
+
+  // Background
+  const bgGrad = tctx.createLinearGradient(0, 0, 0, h);
+  bgGrad.addColorStop(0, "#050505"); bgGrad.addColorStop(1, "#0d1424");
+  tctx.fillStyle = bgGrad; tctx.fillRect(0, 0, w, h);
+
+  // Grid lines
+  tctx.strokeStyle = "rgba(30,43,71,0.5)"; tctx.lineWidth = 1;
+  for (let y = 30; y < h; y += 30) {
+    tctx.beginPath(); tctx.moveTo(0, y); tctx.lineTo(w, y); tctx.stroke();
+  }
+
+  const vA = frameA ? frameA.v : 0;
+  const aA = frameA ? frameA.a : 0;
+  const dA = frameA ? frameA.d : 0;
+  const vB = frameB ? frameB.v : 0;
+  const aB = frameB ? frameB.a : 0;
+  const dB = frameB ? frameB.d : 0;
+
+  trackOffsets.A += vA * dtStep * 12;
+  trackOffsets.B += vB * dtStep * 12;
+
+  if (!compareMode) {
+    // Single lane
+    const roadY = 170;
+    tctx.fillStyle = "#121b30"; tctx.fillRect(0, roadY - 45, w, 90);
+    tctx.strokeStyle = "#1e2b47"; tctx.lineWidth = 2;
+    tctx.strokeRect(0, roadY - 45, w, 90);
+
+    // Dashed center line
+    tctx.strokeStyle = "rgba(0,240,255,0.4)"; tctx.lineWidth = 3;
+    tctx.setLineDash([25, 20]);
+    tctx.lineDashOffset = -trackOffsets.A;
+    tctx.beginPath(); tctx.moveTo(0, roadY); tctx.lineTo(w, roadY); tctx.stroke();
+    tctx.setLineDash([]);
+
+    // Draw Distance Markers
+    const startM = Math.floor((dA - 20) / 100) * 100;
+    for (let m = Math.max(0, startM); m <= dA + 150; m += 100) {
+      const mx = 100 + (m - dA) * 6;
+      if (mx >= 0 && mx <= w) {
+        tctx.strokeStyle = "rgba(255,255,255,0.2)"; tctx.lineWidth = 2;
+        tctx.beginPath(); tctx.moveTo(mx, roadY - 45); tctx.lineTo(mx, roadY + 45); tctx.stroke();
+        tctx.fillStyle = "rgba(125,138,168,0.7)"; tctx.font = '10px "JetBrains Mono"';
+        tctx.fillText(m + "m", mx + 4, roadY - 30);
+      }
+    }
+
+    drawCar(120, roadY - 10, vA, aA, {
+      bodyKey: builds.A.body, offsetKey: "A", colorFrom: "#00f0ff", colorTo: "#39ff88"
+    });
+
+  } else {
+    // Dual lane race
+    const roadYA = 90, roadYB = 210;
+
+    // Lane A
+    tctx.fillStyle = "#121b30"; tctx.fillRect(0, roadYA - 35, w, 70);
+    tctx.strokeStyle = "#1e2b47"; tctx.lineWidth = 2; tctx.strokeRect(0, roadYA - 35, w, 70);
+
+    tctx.strokeStyle = "rgba(0,240,255,0.4)"; tctx.lineWidth = 2;
+    tctx.setLineDash([20, 15]); tctx.lineDashOffset = -trackOffsets.A;
+    tctx.beginPath(); tctx.moveTo(0, roadYA); tctx.lineTo(w, roadYA); tctx.stroke();
+
+    // Lane B
+    tctx.fillStyle = "#121b30"; tctx.fillRect(0, roadYB - 35, w, 70);
+    tctx.strokeStyle = "#1e2b47"; tctx.lineWidth = 2; tctx.strokeRect(0, roadYB - 35, w, 70);
+
+    tctx.strokeStyle = "rgba(255,90,0,0.4)"; tctx.lineWidth = 2;
+    tctx.setLineDash([20, 15]); tctx.lineDashOffset = -trackOffsets.B;
+    tctx.beginPath(); tctx.moveTo(0, roadYB); tctx.lineTo(w, roadYB); tctx.stroke();
+    tctx.setLineDash([]);
+
+    // Position cars according to relative race progress
+    const leadDist = Math.max(dA, dB);
+    const xA = 100 + (dA - leadDist) * 4;
+    const xB = 100 + (dB - leadDist) * 4;
+
+    drawCar(Math.max(30, xA), roadYA - 10, vA, aA, {
+      bodyKey: builds.A.body, offsetKey: "A", colorFrom: "#00f0ff", colorTo: "#39ff88"
+    });
+    drawCar(Math.max(30, xB), roadYB - 10, vB, aB, {
+      bodyKey: builds.B.body, offsetKey: "B", colorFrom: "#ff5a00", colorTo: "#ffb800"
+    });
+
+    // Lane Labels
+    tctx.fillStyle = "#00f0ff"; tctx.font = '700 11px "Orbitron"'; tctx.fillText("CAR A", 10, roadYA - 20);
+    tctx.fillStyle = "#ff5a00"; tctx.font = '700 11px "Orbitron"'; tctx.fillText("CAR B", 10, roadYB - 20);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   PLAYBACK CONTROLLER
+--------------------------------------------------------------------- */
+let simResultA = null, simResultB = null;
+let paramsA = null, paramsB = null;
+let isPlaying = false;
+let playbackTime = 0;
+let speedMult = 1;
+let animId = null;
+let lastTimestamp = null;
+
+function interpolateFrame(series, t) {
+  if (!series || series.length === 0) return { t: 0, v: 0, d: 0, a: 0 };
+  if (t <= 0) return series[0];
+  if (t >= series[series.length - 1].t) return series[series.length - 1];
+
+  const idx = series.findIndex(pt => pt.t >= t);
+  if (idx <= 0) return series[0];
+  const p1 = series[idx - 1], p2 = series[idx];
+  const frac = (t - p1.t) / (p2.t - p1.t);
+
+  return {
+    t,
+    v: p1.v + frac * (p2.v - p1.v),
+    d: p1.d + frac * (p2.d - p1.d),
+    a: p1.a + frac * (p2.a - p1.a)
+  };
+}
+
+function getMaxTime() {
+  const tA = simResultA ? simResultA.series[simResultA.series.length - 1].t : 0;
+  const tB = (compareMode && simResultB) ? simResultB.series[simResultB.series.length - 1].t : 0;
+  return Math.max(tA, tB, 1);
+}
+
+function updateReadouts(frameA, frameB) {
+  document.getElementById("rd-time").textContent = playbackTime.toFixed(2) + " s";
+  document.getElementById("rd-speed").textContent = (frameA.v * 3.6).toFixed(1) + " km/h";
+  document.getElementById("rd-dist").textContent = Math.round(frameA.d) + " m";
+  document.getElementById("rd-gforce").textContent = (frameA.a / GRAVITY).toFixed(2) + " g";
+
+  if (compareMode && frameB) {
+    document.getElementById("rd-speed-b").textContent = (frameB.v * 3.6).toFixed(1) + " km/h";
+    document.getElementById("rd-dist-b").textContent = Math.round(frameB.d) + " m";
+    document.getElementById("rd-gforce-b").textContent = (frameB.a / GRAVITY).toFixed(2) + " g";
+  }
+}
+
+function tick(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const delta = (timestamp - lastTimestamp) / 1000;
+  lastTimestamp = timestamp;
+
+  const maxT = getMaxTime();
+
+  if (isPlaying) {
+    playbackTime += delta * speedMult;
+    if (playbackTime >= maxT) {
+      playbackTime = maxT;
+      isPlaying = false;
+      playToggle.textContent = "▶ PLAY";
+    }
+  }
+
+  const frameA = interpolateFrame(simResultA ? simResultA.series : [], playbackTime);
+  const frameB = compareMode ? interpolateFrame(simResultB ? simResultB.series : [], playbackTime) : null;
+
+  drawGauge(frameA.v, frameB ? frameB.v : 0, simResultA ? simResultA.terminalVelocity : 30, simResultB ? simResultB.terminalVelocity : 30);
+  drawTrackScene(frameA, frameB, isPlaying ? delta * speedMult : 0);
+  updateChartCursor(playbackTime);
+  updateReadouts(frameA, frameB);
+
+  if (isPlaying || playbackTime < maxT) {
+    animId = requestAnimationFrame(tick);
+  }
+}
+
+function startLoop() {
+  if (animId) cancelAnimationFrame(animId);
+  lastTimestamp = null;
+  animId = requestAnimationFrame(tick);
+}
+
+playToggle.addEventListener("click", () => {
+  const maxT = getMaxTime();
+  if (playbackTime >= maxT) playbackTime = 0;
+  isPlaying = !isPlaying;
+  playToggle.textContent = isPlaying ? "⏸ PAUSE" : "▶ PLAY";
+  if (isPlaying) startLoop();
+});
+
+restartBtn.addEventListener("click", () => {
+  playbackTime = 0;
+  isPlaying = true;
+  playToggle.textContent = "⏸ PAUSE";
+  startLoop();
+});
+
+speedGroup.addEventListener("click", (e) => {
+  const btn = e.target.closest(".speed-btn");
+  if (!btn) return;
+  [...speedGroup.children].forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  speedMult = parseFloat(btn.dataset.mult);
+});
+
+/* ---------------------------------------------------------------------
+   EXECUTION RUNNER
+--------------------------------------------------------------------- */
+function runActiveSimulation() {
+  paramsA = getVehicleParams(builds.A);
+  simResultA = simulate(paramsA.cd, paramsA.area, paramsA.mass, paramsA.powerW, paramsA.mu, paramsA.gradientRad);
+
+  if (compareMode) {
+    paramsB = getVehicleParams(builds.B);
+    simResultB = simulate(paramsB.cd, paramsB.area, paramsB.mass, paramsB.powerW, paramsB.mu, paramsB.gradientRad);
+    renderStatsCompare(simResultA, paramsA, simResultB, paramsB);
+    renderChart(simResultA, simResultB);
+  } else {
+    simResultB = null; paramsB = null;
+    renderStatsSingle(simResultA, paramsA);
+    renderChart(simResultA, null);
+  }
+
+  renderSafetyMatrix(paramsA.mu);
+
+  playbackTime = 0;
+  isPlaying = true;
+  playToggle.textContent = "⏸ PAUSE";
+  startLoop();
+}
+
+runBtn.addEventListener("click", runActiveSimulation);
+
+/* ---------------------------------------------------------------------
+   INITIALIZATION
+--------------------------------------------------------------------- */
+window.addEventListener("DOMContentLoaded", () => {
+  refreshBuilderUI();
+  runActiveSimulation();
+});
+</script>
+</body>
+</html>
